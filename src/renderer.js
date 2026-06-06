@@ -1,13 +1,15 @@
 const {spawn} = require("child_process");
 const ffmpegPath = require("ffmpeg-static");
-const { parse } = require("path");
+const path = require("path");
+const fs = require("fs");
 const { start } = require("repl");
+
 
 document.getElementById("run").addEventListener("click", ()=>{
     const out = document.getElementById("out");
     out.textContent = "running... check console";
     const processor = spawn(ffmpegPath, ["-i", "C:/Users/jadon/Downloads/Testclip.MP4",
-        "-af", "silencedetect=noise=-30dB:d=0.5",
+        "-af", "silencedetect=noise=-25dB:d=0.5",
         "-f", "null", "-"
     ]);
 
@@ -47,7 +49,37 @@ document.getElementById("run").addEventListener("click", ()=>{
             console.log(keepRanges);
             console.log("silences", silences);
                  console.log("duration", duration);
-    })
+
+                 const inputPath = "C:/Users/jadon/Downloads/Testclip.MP4";
+const outputDir = path.join(path.dirname(inputPath), "clips")
+
+fs.mkdirSync(outputDir, {recursive: true});
+
+keepRanges.forEach((range,index)=>{
+const fileName = `clip_${String(index + 1).padStart(3,"0")}.mp4`
+const outputPath = path.join(outputDir, fileName);
+
+const cut = spawn(ffmpegPath, [
+    "-ss", range.start.toFixed(3),
+    "-to", range.end.toFixed(3),
+    "-i", inputPath,
+    "-c", "copy",
+    "-y", outputPath
+
+])
+
+cut.on("close", (code)=>{
+ if (code === 0)
+ {
+    console.log(`done ${fileName}`)
+ }
+ else{
+    console.log( `failed ${fileName}, code ${code}`)
+ }
+})
+
+})
+    }) 
 })        
 
 function getKeepRanges(silences, duration){
