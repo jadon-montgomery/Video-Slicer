@@ -6,21 +6,22 @@ const { start } = require("repl");
 
 
 document.getElementById("run").addEventListener("click", ()=>{
-    const out = document.getElementById("out");
-    out.textContent = "running... check console";
+    const outputLog = document.getElementById("outputLog");
+    outputLog.textContent = "running...";
     const processor = spawn(ffmpegPath, ["-i", "C:/Users/jadon/Downloads/Testclip.MP4",
-        "-af", "silencedetect=noise=-25dB:d=0.5",
+        "-af", "silencedetect=noise=-27dB:d=0.5",
         "-f", "null", "-"
     ]);
 
     let dataOutput = "";
 
-    //proc.stdout.on("data", (d)=>(out.textContent = d.toString())) //output
+    //FFmpeg uses stderr instead of stdout for its output
     processor.stderr.on("data", (d)=>{
-        out.textContent = d.toString()
+        outputLog.textContent = d.toString()
         dataOutput += d.toString()
     }
-    ) //diagnostics, errors, etc.
+    ) 
+
     processor.on("close", ()=>{
         const silences = [];
 
@@ -28,6 +29,7 @@ document.getElementById("run").addEventListener("click", ()=>{
         
 
         for(const lines of dataOutput.split("\n")){
+            //Look for silence start/end on the line
             const startMatch = lines.match(/silence_start: (\d+\.?\d*)/);
             const endMatch = lines.match(/silence_end: (\d+\.?\d*)/);
 
@@ -35,20 +37,19 @@ document.getElementById("run").addEventListener("click", ()=>{
                 currentStart = parseFloat(startMatch[1]) //index 1 catches the value in the regex
                 
             }
-            if (endMatch && currentStart !== null){
+            if (currentStart && endMatch  !== null){
                 silences.push({start: currentStart, end: parseFloat(endMatch[1])});
                 currentStart = null;
             }
 
         }
-        //   console.log(silences);
-            //   console.log(dataOutput);
 
-            const duration = parseDuration(dataOutput)
-            const keepRanges = getKeepRanges(silences, duration)
+            const durationInSeconds = parseDuration(dataOutput)
+            const keepRanges = getKeepRanges(silences, durationInSeconds)
+             console.log("video duration", durationInSeconds)
             console.log(keepRanges);
             console.log("silences", silences);
-                 console.log("duration", duration);
+                 console.log("duration", durationInSeconds);
 
                  const inputPath = "C:/Users/jadon/Downloads/Testclip.MP4";
 const outputDir = path.join(path.dirname(inputPath), "clips")
@@ -87,27 +88,37 @@ function getKeepRanges(silences, duration){
     let cursor = 0;
 
     for (const silence of silences){
-        if(cursor < silence.start){
-            keep.push({start: cursor, end: silence.start});
+        if( cursor === 0 && silence.start === 0){
+            cursor = silence.end
         }
-        cursor = silence.end
+        else if (cursor < silence.start){
+            keep.push({start: cursor, end: silence.start});
+            cursor = silence.end
+            continue;
+        }
+
+        console.log("cursor:", cursor, "silence.start:",silence.start, "silence.end:",silence.end)
+    }
+
+    console.log("current cursor location", cursor);
         if(cursor < duration){
             keep.push({start: cursor, end:duration});
         }
-    }
+        // else if (cursor >= duration){
+
+        // }
 
     return keep; 
 }
 
 function parseDuration(output){
-    console.log("OUTPUT", output)
     const match = output.match(/Duration: (\d+):(\d+):(\d+\.?\d*)/)
     if(!match){
-        console.log("bad return")
+        console.log("Video duration not found")
         return 0;
     }
     else{
-        console.log("return successful")
+
         return parseFloat(match[1]) * 3600 
         + parseFloat(match[2]) * 60 +
         parseFloat(match[3]);
