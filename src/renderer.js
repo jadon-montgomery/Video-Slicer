@@ -1,15 +1,18 @@
 const { spawn } = require("child_process");
 const ffmpegPath = require("ffmpeg-static");
+const { webUtils } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { start } = require("repl");
 
-document.getElementById("run").addEventListener("click", () => {
+document.getElementById("fileInput").addEventListener("change", (fileEvent) => {
+  const selectedFile = fileEvent.target.files[0];
   const outputLog = document.getElementById("outputLog");
   outputLog.textContent = "running...";
+  console.log("PATH", webUtils.getPathForFile(selectedFile));
   const processor = spawn(ffmpegPath, [
     "-i",
-    "C:/Users/jadon/Downloads/Testclip_1.MP4",
+    `${webUtils.getPathForFile(selectedFile)}`,
     "-af",
     "silencedetect=noise=-30dB:d=0.05",
     "-f",
