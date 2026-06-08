@@ -4,8 +4,10 @@ const { webUtils } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { start } = require("repl");
+const fileInput = document.getElementById("fileInput");
+let isDialogOpen = false;
 
-document.getElementById("fileInput").addEventListener("change", (fileEvent) => {
+fileInput.addEventListener("change", (fileEvent) => {
   const selectedFile = fileEvent.target.files[0];
   const outputLog = document.getElementById("outputLog");
   outputLog.textContent = "running...";
@@ -86,6 +88,9 @@ document.getElementById("fileInput").addEventListener("change", (fileEvent) => {
       });
     });
   });
+});
+fileInput.addEventListener("cancel", (event) => {
+  console.log("canceled");
 });
 
 function getKeepRanges(silences, duration) {
