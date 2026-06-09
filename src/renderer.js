@@ -10,8 +10,14 @@ let isDialogOpen = false;
 fileInput.addEventListener("change", (fileEvent) => {
   const selectedFile = fileEvent.target.files[0];
   const outputLog = document.getElementById("outputLog");
+  fileInput.disabled = true;
   outputLog.textContent = "running...";
   console.log("PATH", webUtils.getPathForFile(selectedFile));
+
+  if (!selectedFile) {
+    console.log("canceled");
+    return;
+  }
   const processor = spawn(ffmpegPath, [
     "-i",
     `${webUtils.getPathForFile(selectedFile)}`,
@@ -34,6 +40,8 @@ fileInput.addEventListener("change", (fileEvent) => {
     const silences = [];
 
     let currentStart = null;
+
+    fileInput.disabled = false;
     console.log(dataOutput);
 
     for (const lines of dataOutput.split("\n")) {
@@ -52,10 +60,10 @@ fileInput.addEventListener("change", (fileEvent) => {
 
     const durationInSeconds = parseDuration(dataOutput);
     const keepRanges = getKeepRanges(silences, durationInSeconds);
-    console.log("video duration", durationInSeconds);
-    console.log(keepRanges);
-    console.log("silences", silences);
-    console.log("duration", durationInSeconds);
+    // console.log("video duration", durationInSeconds);
+    // console.log(keepRanges);
+    // console.log("silences", silences);
+    // console.log("duration", durationInSeconds);
 
     const inputPath = "C:/Users/jadon/Downloads/Testclip.MP4";
     const outputDir = path.join(path.dirname(inputPath), "clips");
@@ -87,6 +95,9 @@ fileInput.addEventListener("change", (fileEvent) => {
         }
       });
     });
+
+    fileEvent.target.value = "";
+    console.log("success!");
   });
 });
 fileInput.addEventListener("cancel", (event) => {
