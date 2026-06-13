@@ -1,5 +1,6 @@
 const { spawn } = require("child_process");
 const ffmpegPath = require("ffmpeg-static");
+const { generateXML, parseFrameRate } = require("./generateXML.js");
 const { webUtils } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -58,15 +59,29 @@ fileInput.addEventListener("change", (fileEvent) => {
       }
     }
 
+    const inputPath = "C:/Users/jadon/Downloads/Testclip.MP4";
+
+    const outputDir = path.join(path.dirname(inputPath), "clips");
     const durationInSeconds = parseDuration(dataOutput);
     const keepRanges = getKeepRanges(silences, durationInSeconds);
+    const fps = parseFrameRate(dataOutput);
+    const videoInfo = { width: 3840, height: 2160 };
+    const xml = generateXML(
+      keepRanges,
+      inputPath,
+      fps,
+      durationInSeconds,
+      videoInfo,
+    );
+    console.log(xml);
+    fs.writeFileSync(
+      path.join(path.dirname(inputPath), "choppedSequence.xml"),
+      xml,
+    );
     // console.log("video duration", durationInSeconds);
     // console.log(keepRanges);
     // console.log("silences", silences);
     // console.log("duration", durationInSeconds);
-
-    const inputPath = "C:/Users/jadon/Downloads/Testclip.MP4";
-    const outputDir = path.join(path.dirname(inputPath), "clips");
 
     fs.mkdirSync(outputDir, { recursive: true });
 
