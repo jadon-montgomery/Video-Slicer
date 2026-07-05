@@ -1,11 +1,11 @@
 const path = require("path");
 
-function parseFrameRate(output) {
+export function parseFrameRate(output) {
   const match = output.match(/(\d+\.?\d*) fps/);
   return match ? parseFloat(match[1]) : 30;
 }
 
-function parseVideoInfo(output) {
+export function parseVideoInfo(output) {
   const match = output.match(/Video:.*?(\d{3,5})x(\d{3,5})/);
   return match
     ? { width: parseInt(match[1]), height: parseInt(match[2]) }
@@ -19,7 +19,13 @@ function convertToLocalHostPath(filePath) {
   return "file://localhost/" + newPath;
 }
 
-function generateXML(keepRanges, sourcePath, fps, totalDuration, videoInfo) {
+export function generateXML(
+  keepRanges,
+  sourcePath,
+  fps,
+  totalDuration,
+  videoInfo,
+) {
   const name = "test project";
   const uuid = crypto.randomUUID();
   const filePath = convertToLocalHostPath(sourcePath);
@@ -110,7 +116,6 @@ function generateXML(keepRanges, sourcePath, fps, totalDuration, videoInfo) {
             <anamorphic>FALSE</anamorphic>
             <pixelaspectratio>square</pixelaspectratio>
             <fielddominance>none</fielddominance>
-			${Math.round(fps)}
         </samplecharacteristics>
 		 </video>
 
@@ -162,7 +167,8 @@ function generateXML(keepRanges, sourcePath, fps, totalDuration, videoInfo) {
             <anamorphic>FALSE</anamorphic>
             <pixelaspectratio>square</pixelaspectratio>
             <fielddominance>none</fielddominance>
-			    </samplecharacteristics>
+			<colordepth>24</colordepth>
+			</samplecharacteristics>
 </format>
 	<track>
 ${clipItems}
@@ -176,5 +182,3 @@ ${clipItems}
  </xmeml>
   `;
 }
-
-module.exports = { generateXML, parseFrameRate, parseVideoInfo };

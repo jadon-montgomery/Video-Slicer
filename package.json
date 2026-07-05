@@ -7,6 +7,9 @@
   "private": true,
   "scripts": {
     "start": "electron-forge start",
+    "dev:vite": "npm --prefix renderer run dev",
+    "dev:electron": "electron-forge start",
+    "dev": "npm-run-all --parallel dev:vite dev:electron",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
@@ -16,6 +19,7 @@
   "author": "jadon",
   "license": "MIT",
   "dependencies": {
+    "@xenova/transformers": "^2.17.2",
     "electron-squirrel-startup": "^1.0.1",
     "ffmpeg-static": "^5.3.0"
   },
@@ -28,6 +32,7 @@
     "@electron-forge/plugin-auto-unpack-natives": "^7.11.2",
     "@electron-forge/plugin-fuses": "^7.11.2",
     "@electron/fuses": "^1.8.0",
-    "electron": "42.3.0"
+    "electron": "42.3.0",
+    "npm-run-all": "^4.1.5"
   }
 }
