@@ -12,10 +12,13 @@ export const ModeSelect = ({ mode, setMode }) => {
     }
   }
   return (
-    <div>
-      <button onClick={toggleMode}>
-        <p>{mode === 1 ? "speech" : "silence"}</p>
-      </button>
-    </div>
+    <button
+      className="w-56 rounded-4xl m-6 p-5  border-2 border-amber-300"
+      onClick={toggleMode}
+    >
+      <p className="text-white font-semibold">
+        {mode === 1 ? "speech" : "silence"}
+      </p>
+    </button>
   );
 };

@@ -158,6 +158,7 @@ const Renderer = ({ mode, setTranscribedText, transcribedText }) => {
               type: "silence",
               startPoint: textItem.endPoint,
               endPoint: textItem.endPoint + parseFloat(silenceDuration[1]),
+              selected: true,
             };
 
             console.log("identifyGap", silenceItem);
@@ -310,12 +311,12 @@ const Renderer = ({ mode, setTranscribedText, transcribedText }) => {
       });
 
       fileEvent.target.value = "";
-      console.log("success!");
+      outputLog.textContent = "success!: check download folder";
     });
   }
 
   return (
-    <div>
+    <div className="border-amber-50 border-2 flex text-center w-fit">
       <input
         disabled={isDisabled}
         onChange={fileChanged}
