@@ -14,7 +14,7 @@ export const ModeSelect = ({ mode, setMode }) => {
   return (
     <div>
       <button onClick={toggleMode}>
-        <text>{mode === 1 ? "speech" : "silence"}</text>
+        <p>{mode === 1 ? "speech" : "silence"}</p>
       </button>
     </div>
   );

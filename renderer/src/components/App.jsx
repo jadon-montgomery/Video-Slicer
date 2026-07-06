@@ -11,7 +11,11 @@ function App() {
   return (
     <div>
       <h1 className="underline">Video Slicer</h1>
-      <Renderer setTranscribedText={setTranscribedText} mode={mode}></Renderer>
+      <Renderer
+        setTranscribedText={setTranscribedText}
+        transcribedText={transcribedText}
+        mode={mode}
+      ></Renderer>
       <ModeSelect mode={mode} setMode={setMode}></ModeSelect>
       <pre id="outputLog"></pre>
       <p>Transcription:</p>
@@ -23,7 +27,9 @@ function App() {
               onClick={handleClick}
               className="w-fit translation-text hover:scale-[115%] duration-200 translate"
             >
-              <p className="text-white">{item.text}</p>
+              <p className={item.type === "text" ? "text-white" : "text-blue"}>
+                {item.type === "text" ? item.text : "GAP"}
+              </p>
             </button>
           );
         })}
