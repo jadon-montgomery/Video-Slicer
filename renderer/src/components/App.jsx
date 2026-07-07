@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import "../App.css";
 import Renderer from "./renderer.jsx";
 import { ModeSelect } from "./mode_select.jsx";
@@ -7,12 +7,14 @@ function App() {
   const [mode, setMode] = useState(1);
   const [transcribedText, setTranscribedText] = useState([]);
   const [silences, setSilences] = useState([]);
+  const rendererRef = useRef(null);
+
   function handleClick(item) {
     console.log("selected", item.target);
     if (item.selected) {
     }
   }
-
+  function trimVideo() {}
   return (
     <div className="w-screen h-screen flex flex-col items-center justify-center">
       <h1 className="underline">Video Slicer</h1>
@@ -20,6 +22,7 @@ function App() {
         <p className=" h-fit w-[64ch] text-center" id="outputLog"></p>
       </div>
       <Renderer
+        ref={rendererRef}
         setTranscribedText={setTranscribedText}
         transcribedText={transcribedText}
         mode={mode}
@@ -59,6 +62,13 @@ function App() {
           );
         })}
       </div>
+
+      <button
+        onClick={() => rendererRef.current?.extractSilences()}
+        className="p-4 border-2 border-amber-400 rounded-4xl"
+      >
+        Trim
+      </button>
     </div>
   );
 }
