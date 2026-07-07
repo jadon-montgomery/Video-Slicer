@@ -7,6 +7,7 @@ const ffmpegPath = require("ffmpeg-static");
 const { pipeline } = require("@xenova/transformers");
 
 import { generateXML, parseFrameRate } from "../generateXML";
+const crypto = require("crypto");
 const { webUtils } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -63,6 +64,7 @@ const Renderer = ({ mode, setTranscribedText, transcribedText }) => {
       // let identifyGap = false;
 
       const textItem = {
+        id: crypto.randomUUID(),
         type: "text",
         text: chunk.text,
         startPoint: chunk.timestamp[0],
@@ -156,6 +158,7 @@ const Renderer = ({ mode, setTranscribedText, transcribedText }) => {
 
             silenceItem = {
               type: "silence",
+              id: crypto.randomUUID(),
               startPoint: textItem.endPoint,
               endPoint: textItem.endPoint + parseFloat(silenceDuration[1]),
               selected: true,

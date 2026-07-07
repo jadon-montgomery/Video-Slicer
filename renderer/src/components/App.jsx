@@ -6,6 +6,7 @@ import { ModeSelect } from "./mode_select.jsx";
 function App() {
   const [mode, setMode] = useState(1);
   const [transcribedText, setTranscribedText] = useState([]);
+  const [silences, setSilences] = useState([]);
   function handleClick(item) {
     console.log("selected", item.target);
     if (item.selected) {
@@ -34,11 +35,23 @@ function App() {
           return (
             <button
               key={index}
-              onClick={handleClick}
+              onClick={() => {
+                console.log("click", item.type);
+                if (item.type === "text") {
+                } else {
+                  setTranscribedText((previousContent) =>
+                    previousContent.map((contentItem) =>
+                      contentItem.id === item.id
+                        ? { ...contentItem, selected: !item.selected }
+                        : contentItem,
+                    ),
+                  );
+                }
+              }}
               className="w-fit translation-text hover:scale-[115%] duration-200 translate"
             >
               <p
-                className={`${item.type === "text" ? "text-white" : "text-blue"} ${item.selected ? "text-green-400" : ""}`}
+                className={`duration-200 ${item.type === "text" ? "text-white" : "text-blue"} ${item.selected ? "text-green-400" : "text-red-400"}`}
               >
                 {item.type === "text" ? item.text : "<- ->"}
               </p>
