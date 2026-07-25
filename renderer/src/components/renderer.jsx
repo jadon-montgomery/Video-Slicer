@@ -2,17 +2,8 @@ import React from "react";
 import { useState, forwardRef, useImperativeHandle } from "react";
 import { useEffect } from "react";
 import { useRef } from "react";
-const { spawn } = require("child_process");
-const ffmpegPath = require("ffmpeg-static");
-const { pipeline } = require("@xenova/transformers");
-
 import { generateXML, parseFrameRate } from "../generateXML";
-const crypto = require("crypto");
-const { webUtils } = require("electron");
-const path = require("path");
-const fs = require("fs");
-const { start } = require("repl");
-const { pathToFileURL } = require("url");
+
 const fileInput = document.getElementById("fileInput");
 let isDialogOpen = false;
 
@@ -22,39 +13,50 @@ const Renderer = forwardRef(
     const fileInputRef = useRef(null);
     const transText = [...transcribedText];
     const [filePath, setFilePath] = useState("");
+    const [currentFile, setCurrentFile] = useState("");
+
     let sampleData = "";
 
     useEffect(() => {
+      console.log("PATH", filePath);
       console.log(transcribedText);
     }, [transcribedText]);
+
+    useEffect(() => {
+      if (currentFile !== "") processFile();
+    }, [filePath]);
+
     async function fileChanged(fileEvent) {
       const selectedFile = fileEvent.target.files[0];
-      const outputLog = document.getElementById("outputLog");
-      setFilePath(webUtils.getPathForFile(selectedFile));
-
-      setIsDisabled(true);
-      outputLog.textContent = "running...";
-      console.log("PATH", webUtils.getPathForFile(selectedFile));
-
+      setCurrentFile(selectedFile);
+      console.log("SL", selectedFile);
       if (!selectedFile) {
         console.log("canceled");
         return;
       }
-
-      if (mode === 0) {
-        silenceDetect(
-          selectedFile,
-          fileEvent,
-          webUtils.getPathForFile(selectedFile),
-        );
-      } else {
-        audioToText(selectedFile);
-      }
+      const ffmpegPath = await window.electronAPI.getFfmpegPath();
+      console.log("FFMPEG", ffmpegPath);
+      const outputLog = document.getElementById("outputLog");
+      setFilePath(await window.electronAPI.getFilePath(selectedFile));
+      setIsDisabled(true);
     }
 
     useImperativeHandle(ref, () => ({
       extractSilences,
     }));
+
+    async function processFile() {
+      console.log(transcribedText);
+      outputLog.textContent = "running...";
+      const duration = await window.electronAPI.getVideoDuration(filePath);
+      console.log("DURATION", duration);
+
+      if (mode === 0) {
+        silenceDetect(currentFile, fileEvent, filePath);
+      } else {
+        audioToText(filePath);
+      }
+    }
 
     function extractSilences() {
       const silences = [];
@@ -68,19 +70,14 @@ const Renderer = forwardRef(
       //fileEvent.target.value = "";
       console.log(silences, "SILENCES");
     }
-    async function audioToText(selectedFile) {
-      const transcriber = await pipeline(
-        "automatic-speech-recognition",
-        "Xenova/whisper-base.en",
-      );
-      const output = await transcriber(webUtils.getPathForFile(selectedFile), {
-        return_timestamps: "word",
-      });
-      console.log(output);
-      transcriber.start;
+    async function audioToText(filePath) {
+      console.log(currentFile, "TEST");
+      const transcriberOutput =
+        await window.electronAPI.runTranscriber(filePath);
+      console.log(transcriberOutput);
 
-      for (const [index, chunk] of output.chunks.entries()) {
-        const nextChunk = output.chunks[index + 1];
+      for (const [index, chunk] of transcriberOutput.chunks.entries()) {
+        const nextChunk = transcriberOutput.chunks[index + 1];
         // let identifyGap = false;
 
         const textItem = {
@@ -118,20 +115,20 @@ const Renderer = forwardRef(
 
         transText.push(textItem, silenceItem);
 
-        //  console.log(identifyGap);
-        // if (identifyGap) {
-        //   console.log("GAP SHOULD BE ADDED");
-        // }
+        //   //  console.log(identifyGap);
+        //   // if (identifyGap) {
+        //   //   console.log("GAP SHOULD BE ADDED");
+        //   // }
 
-        // if (!alreadyAdded) {
-        // }
-        // console.log(
-        //   textItem.text,
-        //   textItem.startPoint,
-        //   textItem.endPoint,
-        //   "stamp",
-        //   silenceItem,
-        // );
+        //   // if (!alreadyAdded) {
+        //   // }
+        //   // console.log(
+        //   //   textItem.text,
+        //   //   textItem.startPoint,
+        //   //   textItem.endPoint,
+        //   //   "stamp",
+        //   //   silenceItem,
+        //   // );
       }
 
       console.log(transText, "TRANSTEXT");

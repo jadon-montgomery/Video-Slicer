@@ -1,5 +1,3 @@
-const path = require("path");
-
 export function parseFrameRate(output) {
   const match = output.match(/(\d+\.?\d*) fps/);
   return match ? parseFloat(match[1]) : 30;
@@ -29,7 +27,7 @@ export function generateXML(
   const name = "test project";
   const uuid = crypto.randomUUID();
   const filePath = convertToLocalHostPath(sourcePath);
-  const fileName = path.basename(sourcePath);
+  const fileName = window.electronAPI.getFileBaseName(sourcePath);
   const totalSourceFrames = Math.round(totalDuration * fps);
   const clips = [];
 
