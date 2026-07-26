@@ -8,7 +8,7 @@ const fileInput = document.getElementById("fileInput");
 let isDialogOpen = false;
 
 const Renderer = forwardRef(
-  ({ mode, setTranscribedText, transcribedText }, ref) => {
+  ({ mode, setTranscribedText, transcribedText, setFileName }, ref) => {
     const [isDisabled, setIsDisabled] = useState(false);
     const fileInputRef = useRef(null);
     const transText = [...transcribedText];
@@ -34,6 +34,8 @@ const Renderer = forwardRef(
         console.log("canceled");
         return;
       }
+      setFileName(selectedFile.name);
+      console.log("FILENAME", selectedFile);
       const ffmpegPath = await window.electronAPI.getFfmpegPath();
       console.log("FFMPEG", ffmpegPath);
       const outputLog = document.getElementById("outputLog");
@@ -345,16 +347,36 @@ const Renderer = forwardRef(
       outputLog.textContent = "success!: check download folder";
     }
     return (
-      <div className="border-amber-50 border-2 flex text-center w-fit">
+      <label className="file-input-container ">
         <input
           disabled={isDisabled}
           onChange={fileChanged}
           ref={fileInputRef}
           type="file"
+          className="sr-only"
           id="fileInput"
           accept=".mp4"
         />
-      </div>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="2"
+          stroke="currentColor"
+          className="w-[10%] text-[#fb8500] mr-4"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+          />
+        </svg>
+
+        <div className="file-input ">
+          {" "}
+          <p>{filePath ? filePath : "Choose a file"}</p>
+        </div>
+      </label>
     );
   },
 );

@@ -132,5 +132,5 @@ const decodeAudio = async (selectedFilePath, outputPath) => {
   // Read .wav file and convert it to required format
   let wavFile = new wavefile.WaveFile(wavFileBytes);
   wavFile.toBitDepth("32f"); //convert audio samples to 32float format
-  return (audioData = wav.getSamples(true, Float32Array)); //grab audio samples and store in 32float array
+  return (audioData = wavFile.getSamples(true, Float32Array)); //grab audio samples and store in 32float array
 };

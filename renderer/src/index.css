@@ -17,7 +17,6 @@
   --heading: system-ui, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
   color-scheme: light dark;
   color: var(--text);
@@ -32,29 +31,45 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-  .translation-text {
-    @apply hover:bg-[#c084fc] m-1;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter-VariableFont_opsz,wght.ttf");
+  font-display: swap;
 }
 
+@theme {
+  --font-inter: "Inter", sans-serif;
+}
+.background {
+  @apply bg-linear-to-b from-[#ffe1bf] to-[#ffffff];
+}
+
+.sub-heading-text {
+  @apply font-bold font-inter text-black text-2xl m-4;
+}
+.transcription-text {
+  @apply font-medium font-inter text-black text-lg m-0.5;
+}
+
+.transcription-container {
+  @apply p-4 rounded-2xl bg-white drop-shadow-[#fb8500]/30 drop-shadow-lg;
+}
+
+.primary-btn {
+  @apply font-inter flex justify-center items-center font-bold p-4 m-2 border-2 text-white bg-[#fb8500] rounded-4xl;
+}
+
+.file-input {
+  @apply bg-white overflow-hidden text-center flex items-center justify-center pr-2 pl-2 w-full h-full rounded-sm text-sm font-inter font-medium;
+}
+
+.file-input-container {
+  @apply m-6 flex items-center justify-center w-[40%] h-fit overflow-hidden;
+}
+
+.drop-down-option {
+  @apply items-center w-full p-2 hover:bg-[#fb8500] hover:text-white rounded;
+}
 body {
   margin: 0;
 }
@@ -82,30 +97,15 @@ h1 {
   font-size: 56px;
   letter-spacing: -1.68px;
   margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
 }
 h2 {
   font-size: 24px;
   line-height: 118%;
   letter-spacing: -0.24px;
   margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
 }
 p {
   margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
 }
 
 code {
