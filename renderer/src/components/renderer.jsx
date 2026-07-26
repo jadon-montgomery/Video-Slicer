@@ -54,13 +54,17 @@ const Renderer = forwardRef(
       console.log("DURATION", duration);
 
       if (mode === 0) {
-        silenceDetect(currentFile, fileEvent, filePath);
+        await window.electronAPI.silenceDetect(
+          currentFile,
+          fileEvent,
+          filePath,
+        );
       } else {
         audioToText(filePath);
       }
     }
 
-    function extractSilences() {
+    async function extractSilences() {
       const silences = [];
       transcribedText.forEach((element) => {
         if (element.type === "silence" && element.selected === true) {
@@ -68,15 +72,15 @@ const Renderer = forwardRef(
         }
       });
       console.log(filePath, silences, "SILENCES");
-      trimVideo(silences, sampleData, filePath);
+      await window.electronAPI.trimVideo(silences, sampleData, filePath);
       //fileEvent.target.value = "";
       console.log(silences, "SILENCES");
     }
     async function audioToText(filePath) {
-      console.log(currentFile, "TEST");
+      console.log(currentFile, filePath, "TEST");
       const transcriberOutput =
         await window.electronAPI.runTranscriber(filePath);
-      console.log(transcriberOutput);
+      console.log(transcriberOutput, "TRANSCRIBER OUTPUT", filePath);
 
       for (const [index, chunk] of transcriberOutput.chunks.entries()) {
         const nextChunk = transcriberOutput.chunks[index + 1];
@@ -107,10 +111,13 @@ const Renderer = forwardRef(
         }
         console.log("processor", textItem.endPoint, nextTextStartPoint);
 
-        const silenceItem = await detectSilence(
+        console.log("SELECTTED FILE", currentFile);
+        console.log("FILEPATRH", filePath);
+        const silenceItem = await window.electronAPI.detectSilence(
+          filePath,
           textItem,
           nextTextStartPoint,
-          selectedFile,
+          currentFile,
           dataOutput,
           // identifyGap,
         );
@@ -135,64 +142,6 @@ const Renderer = forwardRef(
 
       console.log(transText, "TRANSTEXT");
       setTranscribedText(transText);
-    }
-
-    async function detectSilence(
-      textItem,
-      nextTextStartPoint,
-      selectedFile,
-      dataOutput,
-      // identifyGap,
-    ) {
-      console.log("NOT NULL", textItem.endPoint, nextTextStartPoint);
-
-      return new Promise((resolve) => {
-        let silenceItem = null;
-        const processor = spawn(ffmpegPath, [
-          "-ss",
-          `${textItem.endPoint}`,
-          "-to",
-          `${nextTextStartPoint}`,
-          "-i",
-          `${webUtils.getPathForFile(selectedFile)}`,
-          "-af",
-          "silencedetect=noise=-30dB:d=0.05",
-          "-f",
-          "null",
-          "-",
-        ]);
-
-        //FFmpeg uses stderr instead of stdout for its output
-        processor.stderr.on("data", (d) => {
-          outputLog.textContent = d.toString();
-          dataOutput += d.toString();
-        });
-
-        processor.on("close", () => {
-          sampleData = dataOutput;
-          for (const lines of dataOutput.split("\n")) {
-            //If any silence is detected
-            const silenceDuration = lines.match(
-              /silence_duration: (\d+\.?\d*)/,
-            );
-            if (silenceDuration !== null) {
-              // identifyGap = true;
-
-              silenceItem = {
-                type: "silence",
-                id: crypto.randomUUID(),
-                startPoint: textItem.endPoint,
-                endPoint: textItem.endPoint + parseFloat(silenceDuration[1]),
-                selected: true,
-              };
-
-              console.log("identifyGap", silenceItem);
-              resolve(silenceItem);
-            }
-            //console.log("output", dataOutput);
-          }
-        });
-      });
     }
 
     function getSilences(dataOutput, currentStart, silences) {
@@ -261,91 +210,6 @@ const Renderer = forwardRef(
       }
     }
 
-    function silenceDetect(selectedFile, fileEvent, filePath) {
-      let dataOutput = "";
-      const processor = spawn(ffmpegPath, [
-        "-i",
-        `${webUtils.getPathForFile(selectedFile)}`,
-        "-af",
-        "silencedetect=noise=-30dB:d=0.1",
-        "-f",
-        "null",
-        "-",
-      ]);
-
-      //FFmpeg uses stderr instead of stdout for its output
-      processor.stderr.on("data", (d) => {
-        outputLog.textContent = d.toString();
-        dataOutput += d.toString();
-      });
-
-      processor.on("close", () => {
-        const silences = [];
-
-        let currentStart = null;
-
-        setIsDisabled(false);
-        console.log(dataOutput);
-        getSilences(dataOutput, currentStart, silences);
-
-        trimVideo(silences, dataOutput, filePath);
-        fileEvent.target.value = "";
-      });
-    }
-    function trimVideo(silences, dataOutput, filePath) {
-      console.log(silences, dataOutput, filePath);
-      const outputDir = path.join(path.dirname(filePath), "clips");
-      const durationInSeconds = parseDuration(dataOutput);
-      const keepRanges = getKeepRanges(silences, durationInSeconds);
-      const fps = parseFrameRate(dataOutput);
-      const videoInfo = { width: 3840, height: 2160 };
-      const xml = generateXML(
-        keepRanges,
-        filePath,
-        fps,
-        durationInSeconds,
-        videoInfo,
-      );
-      console.log(xml);
-      fs.writeFileSync(
-        path.join(path.dirname(filePath), "choppedSequence.xml"),
-        xml,
-      );
-      // console.log("video duration", durationInSeconds);
-      // console.log(keepRanges);
-      // console.log("silences", silences);
-      // console.log("duration", durationInSeconds);
-
-      fs.mkdirSync(outputDir, { recursive: true });
-
-      keepRanges.forEach((range, index) => {
-        const fileName = `clip_${String(index + 1).padStart(3, "0")}.mp4`;
-        const outputPath = path.join(outputDir, fileName);
-
-        const cut = spawn(ffmpegPath, [
-          "-ss",
-          range.startPoint.toFixed(3),
-          "-to",
-          range.endPoint.toFixed(3),
-          "-i",
-          filePath,
-          "-c",
-          "copy",
-          "-y",
-          outputPath,
-        ]);
-
-        cut.on("close", (code) => {
-          if (code === 0) {
-            console.log(`done ${fileName}`);
-          } else {
-            console.log(`failed ${fileName}, code ${code}`);
-          }
-        });
-      });
-
-      outputLog.textContent = "success!: check download folder";
-    }
     return (
       <label className="file-input-container ">
         <input

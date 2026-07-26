@@ -21,4 +21,33 @@ contextBridge.exposeInMainWorld("electronAPI", {
     console.log("PRELOAD runTranscriber");
     return ipcRenderer.invoke("run-transcriber", selectedFilePath);
   },
+
+  silenceDetect: (selectedFile, fileEvent, filePath) => {
+    return ipcRenderer.invoke(
+      "silence-detect",
+      selectedFile,
+      fileEvent,
+      filePath,
+    );
+  },
+
+  trimVideo: (silences, dataOutput, filePath) => {
+    return ipcRenderer.invoke("trim-video", silences, dataOutput, filePath);
+  },
+  detectSilence: (
+    filePath,
+    textItem,
+    nextTextStartPoint,
+    selectedFile,
+    dataOutput,
+  ) => {
+    return ipcRenderer.invoke(
+      "detect-silence",
+      filePath,
+      textItem,
+      nextTextStartPoint,
+      selectedFile,
+      dataOutput,
+    );
+  },
 });
