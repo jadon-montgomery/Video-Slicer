@@ -12,6 +12,8 @@ const { start } = require("repl");
 const { pathToFileURL } = require("url");
 const { pipeline } = require("@xenova/transformers");
 const wavefile = require("wavefile");
+const { generateXML, parseFrameRate } = require("./generateXML.js");
+
 ipcMain.handle("get-video-duration", async (event, filePath) => {
   console.log("FFMPEGPATH", ffmpegPath);
   return new Promise((resolve, reject) => {
@@ -148,15 +150,35 @@ ipcMain.handle(
 
       let currentStart = null;
 
-      setIsDisabled(false);
-      console.log(dataOutput);
+      //setIsDisabled(false);
+      //console.log(dataOutput)
+      console.log("THIS IS THE FILEPATH", typeof toString(filePath));
       getSilences(dataOutput, currentStart, silences);
 
       trimVideo(silences, dataOutput, filePath);
-      fileEvent.target.value = "";
+      fileEvent.value = "";
     });
   },
 );
+
+function getSilences(dataOutput, currentStart, silences) {
+  for (const lines of dataOutput.split("\n")) {
+    //Look for silence start/end on the line
+    const startMatch = lines.match(/silence_start: (\d+\.?\d*)/);
+    const endMatch = lines.match(/silence_end: (\d+\.?\d*)/);
+
+    if (startMatch) {
+      currentStart = parseFloat(startMatch[1]); //index 1 catches the value in the regex
+    }
+    if (endMatch && currentStart !== null) {
+      silences.push({
+        startPoint: currentStart,
+        endPoint: parseFloat(endMatch[1]),
+      });
+      currentStart = null;
+    }
+  }
+}
 
 ipcMain.handle("trim-video", (event, silences, dataOutput, filePath) => {
   console.log(silences, dataOutput, filePath);
@@ -188,6 +210,7 @@ ipcMain.handle("trim-video", (event, silences, dataOutput, filePath) => {
     const fileName = `clip_${String(index + 1).padStart(3, "0")}.mp4`;
     const outputPath = path.join(outputDir, fileName);
 
+    console.log(range, index, "RANGE");
     const cut = spawn(ffmpegPath, [
       "-ss",
       range.startPoint.toFixed(3),
@@ -297,8 +320,55 @@ const decodeAudio = async (selectedFilePath, outputPath) => {
   });
 };
 
-function trimVideo(event, silences, dataOutput, filePath) {
-  console.log(silences, dataOutput, filePath);
+function parseDuration(output) {
+  const match = output.match(/Duration: (\d+):(\d+):(\d+\.?\d*)/);
+  if (!match) {
+    console.log("Video duration not found");
+    return 0;
+  } else {
+    return (
+      parseFloat(match[1]) * 3600 +
+      parseFloat(match[2]) * 60 +
+      parseFloat(match[3])
+    );
+  }
+}
+
+function getKeepRanges(silences, duration) {
+  const keep = [];
+  let cursor = 0;
+
+  for (const silence of silences) {
+    if (cursor === 0 && silence.startPoint === 0) {
+      cursor = silence.endPoint;
+    } else if (cursor < silence.startPoint) {
+      keep.push({ startPoint: cursor, endPoint: silence.startPoint });
+      cursor = silence.endPoint;
+    }
+
+    console.log(
+      "cursor:",
+      cursor,
+      "silence.startPoint:",
+      silence.startPoint,
+      "silence.endPoint:",
+      silence.endPoint,
+    );
+  }
+
+  console.log("current cursor location", cursor);
+  if (cursor <= duration) {
+    keep.push({ start: cursor, end: duration });
+  }
+  // else if (cursor >= duration){
+
+  // }
+
+  return keep;
+}
+
+function trimVideo(silences, dataOutput, filePath) {
+  console.log(silences, dataOutput, filePath, typeof filePath, "HEY");
   const outputDir = path.join(path.dirname(filePath), "clips");
   const durationInSeconds = parseDuration(dataOutput);
   const keepRanges = getKeepRanges(silences, durationInSeconds);

@@ -2,7 +2,6 @@ import React from "react";
 import { useState, forwardRef, useImperativeHandle } from "react";
 import { useEffect } from "react";
 import { useRef } from "react";
-import { generateXML, parseFrameRate } from "../generateXML";
 
 const fileInput = document.getElementById("fileInput");
 let isDialogOpen = false;
@@ -13,6 +12,7 @@ const Renderer = forwardRef(
     const fileInputRef = useRef(null);
     const transText = [...transcribedText];
     const [filePath, setFilePath] = useState("");
+    const [fileEventItem, setFileEventItem] = useState("");
     const [currentFile, setCurrentFile] = useState("");
 
     let sampleData = "";
@@ -23,7 +23,7 @@ const Renderer = forwardRef(
     }, [transcribedText]);
 
     useEffect(() => {
-      if (currentFile !== "") processFile();
+      if (currentFile !== "") processFile(fileEventItem);
     }, [filePath]);
 
     async function fileChanged(fileEvent) {
@@ -34,6 +34,7 @@ const Renderer = forwardRef(
         console.log("canceled");
         return;
       }
+      setFileEventItem(fileEvent.target);
       setFileName(selectedFile.name);
       console.log("FILENAME", selectedFile);
       const ffmpegPath = await window.electronAPI.getFfmpegPath();
@@ -47,7 +48,7 @@ const Renderer = forwardRef(
       extractSilences,
     }));
 
-    async function processFile() {
+    async function processFile(fileEvent) {
       console.log(transcribedText);
       outputLog.textContent = "running...";
       const duration = await window.electronAPI.getVideoDuration(filePath);
@@ -142,72 +143,6 @@ const Renderer = forwardRef(
 
       console.log(transText, "TRANSTEXT");
       setTranscribedText(transText);
-    }
-
-    function getSilences(dataOutput, currentStart, silences) {
-      for (const lines of dataOutput.split("\n")) {
-        //Look for silence start/end on the line
-        const startMatch = lines.match(/silence_start: (\d+\.?\d*)/);
-        const endMatch = lines.match(/silence_end: (\d+\.?\d*)/);
-
-        if (startMatch) {
-          currentStart = parseFloat(startMatch[1]); //index 1 catches the value in the regex
-        }
-        if (endMatch && currentStart !== null) {
-          silences.push({
-            startPoint: currentStart,
-            endPoint: parseFloat(endMatch[1]),
-          });
-          currentStart = null;
-        }
-      }
-    }
-
-    function getKeepRanges(silences, duration) {
-      const keep = [];
-      let cursor = 0;
-
-      for (const silence of silences) {
-        if (cursor === 0 && silence.startPoint === 0) {
-          cursor = silence.endPoint;
-        } else if (cursor < silence.startPoint) {
-          keep.push({ startPoint: cursor, endPoint: silence.startPoint });
-          cursor = silence.endPoint;
-        }
-
-        console.log(
-          "cursor:",
-          cursor,
-          "silence.startPoint:",
-          silence.startPoint,
-          "silence.endPoint:",
-          silence.endPoint,
-        );
-      }
-
-      console.log("current cursor location", cursor);
-      if (cursor <= duration) {
-        keep.push({ start: cursor, end: duration });
-      }
-      // else if (cursor >= duration){
-
-      // }
-
-      return keep;
-    }
-
-    function parseDuration(output) {
-      const match = output.match(/Duration: (\d+):(\d+):(\d+\.?\d*)/);
-      if (!match) {
-        console.log("Video duration not found");
-        return 0;
-      } else {
-        return (
-          parseFloat(match[1]) * 3600 +
-          parseFloat(match[2]) * 60 +
-          parseFloat(match[3])
-        );
-      }
     }
 
     return (
