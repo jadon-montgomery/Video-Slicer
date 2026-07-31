@@ -48,7 +48,7 @@
   @apply font-bold font-inter text-black text-2xl m-4;
 }
 .transcription-text {
-  @apply font-medium font-inter text-black text-lg m-0.5;
+  @apply font-medium font-inter  text-lg m-0.5;
 }
 
 .transcription-container {

@@ -14,6 +14,7 @@ const Renderer = forwardRef(
     const [filePath, setFilePath] = useState("");
     const [fileEventItem, setFileEventItem] = useState("");
     const [currentFile, setCurrentFile] = useState("");
+    const [silenceDb, setSilenceDb] = useState(-30);
 
     let sampleData = "";
 
@@ -23,7 +24,9 @@ const Renderer = forwardRef(
     }, [transcribedText]);
 
     useEffect(() => {
-      if (currentFile !== "") processFile(fileEventItem);
+      if (currentFile !== "") {
+        processFile(fileEventItem);
+      }
     }, [filePath]);
 
     async function fileChanged(fileEvent) {
@@ -34,11 +37,11 @@ const Renderer = forwardRef(
         console.log("canceled");
         return;
       }
+
       setFileEventItem(fileEvent.target);
       setFileName(selectedFile.name);
       console.log("FILENAME", selectedFile);
-      const ffmpegPath = await window.electronAPI.getFfmpegPath();
-      console.log("FFMPEG", ffmpegPath);
+
       const outputLog = document.getElementById("outputLog");
       setFilePath(await window.electronAPI.getFilePath(selectedFile));
       setIsDisabled(true);
@@ -51,7 +54,10 @@ const Renderer = forwardRef(
     async function processFile(fileEvent) {
       console.log(transcribedText);
       outputLog.textContent = "running...";
+      const ffmpegPath = await window.electronAPI.getFfmpegPath();
       const duration = await window.electronAPI.getVideoDuration(filePath);
+
+      console.log("FFMPEG", ffmpegPath);
       console.log("DURATION", duration);
 
       if (mode === 0) {
@@ -59,9 +65,20 @@ const Renderer = forwardRef(
           currentFile,
           fileEvent,
           filePath,
+          silenceDb,
+          mode,
         );
       } else {
-        audioToText(filePath);
+        //Detect silences
+        const silences = await window.electronAPI.silenceDetect(
+          currentFile,
+          fileEvent,
+          filePath,
+          silenceDb,
+          mode,
+        );
+
+        audioToText(filePath, silences);
       }
     }
 
@@ -77,71 +94,104 @@ const Renderer = forwardRef(
       //fileEvent.target.value = "";
       console.log(silences, "SILENCES");
     }
-    async function audioToText(filePath) {
-      console.log(currentFile, filePath, "TEST");
-      const transcriberOutput =
-        await window.electronAPI.runTranscriber(filePath);
-      console.log(transcriberOutput, "TRANSCRIBER OUTPUT", filePath);
+    async function audioToText(filePath, silences) {
+      let textItem;
 
-      for (const [index, chunk] of transcriberOutput.chunks.entries()) {
-        const nextChunk = transcriberOutput.chunks[index + 1];
-        // let identifyGap = false;
+      const processAudio = new Promise(async (resolve) => {
+        for (const [index, silence] of silences.entries()) {
+          let timeStamp = [0, 0];
+          if (index > 0)
+            timeStamp = [silences[index - 1].endPoint, silence.startPoint];
+          else timeStamp = [0, silence.startPoint];
 
-        const textItem = {
-          id: crypto.randomUUID(),
-          type: "text",
-          text: chunk.text,
-          startPoint: chunk.timestamp[0],
-          endPoint: chunk.timestamp[1],
-        };
+          const duration = timeStamp[1] - timeStamp[0];
 
-        let dataOutput = "";
+          if (duration > 0) {
+            console.log("og timestamp", timeStamp, duration);
+            console.log("TIMESTAMP", timeStamp);
+            const transcriberOutput = await window.electronAPI.runTranscriber(
+              filePath,
+              timeStamp,
+            );
 
-        const nextTextStartPoint =
-          typeof nextChunk !== "undefined"
-            ? nextChunk.timestamp[0]
-            : textItem.endPoint - 0.3;
+            // const transcriberOutput =
+            //   await window.electronAPI.runTranscriber(filePath);
 
-        if (
-          nextTextStartPoint === textItem.endPoint ||
-          textItem.endPoint > nextTextStartPoint
-        ) {
-          transText.push(...transcribedText, textItem);
-          console.log(transText);
-          continue;
+            for (const [index, chunk] of transcriberOutput.chunks.entries()) {
+              const nextChunk = transcriberOutput.chunks[index + 1];
+              // let identifyGap = false;
+
+              textItem = {
+                id: crypto.randomUUID(),
+                type: "text",
+                text: chunk.text,
+                startPoint: chunk.timestamp[0],
+                endPoint: chunk.timestamp[1],
+              };
+
+              let dataOutput = "";
+
+              // const nextTextStartPoint =
+              //   typeof nextChunk !== "undefined"
+              //     ? nextChunk.timestamp[0]
+              //     : textItem.endPoint - 0.3;
+              transText.push(...transcribedText, textItem);
+              console.log(transText);
+              continue;
+              // if (
+              //   nextTextStartPoint === textItem.endPoint ||
+              //   textItem.endPoint > nextTextStartPoint
+              // ) {
+              //   transText.push(...transcribedText, textItem);
+              //   console.log(transText);
+              //   continue;
+              // }
+              //console.log("processor", textItem.endPoint, nextTextStartPoint);
+
+              // console.log("SELECTTED FILE", currentFile);
+              // console.log("FILEPATRH", filePath);
+              // const silenceItem = await window.electronAPI.detectSilence(
+              //   filePath,
+              //   textItem,
+              //   nextTextStartPoint,
+              //   currentFile,
+              //   dataOutput,
+              //   // identifyGap,
+              // );
+
+              // transText.push(textItem, silenceItem);
+
+              //   //  console.log(identifyGap);
+              //   // if (identifyGap) {
+              //   //   console.log("GAP SHOULD BE ADDED");
+              //   // }
+
+              //   // if (!alreadyAdded) {
+              //   // }
+              //   // console.log(
+              //   //   textItem.text,
+              //   //   textItem.startPoint,
+              //   //   textItem.endPoint,
+              //   //   "stamp",
+              //   //   silenceItem,
+              //   // );
+            }
+            const silenceItem = {
+              id: crypto.randomUUID(),
+              type: "silence",
+              text: "<-->",
+              startPoint: silence.startPoint,
+              endPoint: silence.endPoint,
+            };
+            transText.push(silenceItem);
+            console.log(transText, "TRANSTEXT");
+          }
         }
-        console.log("processor", textItem.endPoint, nextTextStartPoint);
+        resolve();
+      });
 
-        console.log("SELECTTED FILE", currentFile);
-        console.log("FILEPATRH", filePath);
-        const silenceItem = await window.electronAPI.detectSilence(
-          filePath,
-          textItem,
-          nextTextStartPoint,
-          currentFile,
-          dataOutput,
-          // identifyGap,
-        );
-
-        transText.push(textItem, silenceItem);
-
-        //   //  console.log(identifyGap);
-        //   // if (identifyGap) {
-        //   //   console.log("GAP SHOULD BE ADDED");
-        //   // }
-
-        //   // if (!alreadyAdded) {
-        //   // }
-        //   // console.log(
-        //   //   textItem.text,
-        //   //   textItem.startPoint,
-        //   //   textItem.endPoint,
-        //   //   "stamp",
-        //   //   silenceItem,
-        //   // );
-      }
-
-      console.log(transText, "TRANSTEXT");
+      const result = await processAudio;
+      console.log("FINISHED");
       setTranscribedText(transText);
     }
 

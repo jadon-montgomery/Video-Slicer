@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import "../App.css";
 import Renderer from "./renderer.jsx";
 import { ModeSelect } from "./mode_select.jsx";
@@ -11,6 +11,10 @@ function App() {
   const [modeSelectActive, setModeSelectActive] = useState(false);
   const rendererRef = useRef(null);
   const modes = ["Silence Detection", "Audio Transcription"];
+
+  useEffect(() => {
+    console.log(transcribedText, "uPDATED");
+  }, [transcribedText]);
 
   function handleClick(item) {
     console.log("selected", item.target);
@@ -111,7 +115,7 @@ function App() {
                 className="w-fit transcription-text hover:scale-[115%] duration-200 translate"
               >
                 <p
-                  className={`transcription-text duration-200 ${item.type === "text" ? "text-white" : "text-blue"} ${item.selected ? "text-green-400" : "text-red-400"}`}
+                  className={`transcription-text duration-200 ${item.type === "text" ? "text-black" : "text-blue"} ${item.selected ? "text-green-400" : ""}`}
                 >
                   {item.type === "text" ? item.text : "<- ->"}
                 </p>

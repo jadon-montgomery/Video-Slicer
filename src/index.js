@@ -2,27 +2,28 @@ const { app, BrowserWindow } = require("electron");
 const { ipcMain } = require("electron");
 const { spawn } = require("child_process");
 const ffmpeg = require("fluent-ffmpeg");
+const ffmpegPath = require("ffmpeg-static");
+const ffprobeStatic = require("ffprobe-static");
 const path = require("path");
 const currentPath = require("node:path");
 const crypto = require("crypto");
 const fs = require("fs");
 const filesys = require("node:fs/promises");
-const ffmpegPath = require("ffmpeg-static");
 const { start } = require("repl");
 const { pathToFileURL } = require("url");
 const { pipeline } = require("@xenova/transformers");
 const wavefile = require("wavefile");
 const { generateXML, parseFrameRate } = require("./generateXML.js");
-
+let duration = 0;
 ipcMain.handle("get-video-duration", async (event, filePath) => {
-  console.log("FFMPEGPATH", ffmpegPath);
   return new Promise((resolve, reject) => {
-    ffmpegPath.ffprobe(filePath, (err, metadata) => {
+    ffmpeg.ffprobe(filePath, (err, metadata) => {
       if (err) {
         console.log("error");
         reject(err);
       } else {
-        const duration = metadata.format.duration;
+        duration = metadata.format.duration;
+        console.log("VIDEO DURATION", duration);
         resolve(duration);
       }
     });
@@ -31,6 +32,9 @@ ipcMain.handle("get-video-duration", async (event, filePath) => {
 
 ipcMain.handle("get-ffmpeg-path", async () => {
   return new Promise((resolve, reject) => {
+    ffmpeg.setFfmpegPath(ffmpegPath);
+    ffmpeg.setFfprobePath(ffprobeStatic.path);
+    console.log("TEST PATH", ffprobeStatic, ffmpeg);
     if (ffmpegPath) {
       //console.log("RESOLVED");
       resolve(ffmpegPath);
@@ -43,22 +47,30 @@ ipcMain.handle("get-ffmpeg-path", async () => {
 ipcMain.handle("get-file-base-name", async (event, sourcePath) => {
   return path.basename(sourcePath);
 });
-ipcMain.handle("run-transcriber", async (event, selectedFilePath) => {
-  const currentDir = currentPath.dirname(selectedFilePath);
-  const outputPath = currentPath.join(currentDir, "output.wav");
-  console.log(outputPath, "OUTPUTPATH");
-  const audioData = await decodeAudio(selectedFilePath, outputPath);
-  const transcriber = await pipeline(
-    "automatic-speech-recognition",
-    "Xenova/whisper-base.en",
-  );
-  const output = await transcriber(audioData, {
-    return_timestamps: "word",
-  });
-  console.log(output);
+ipcMain.handle(
+  "run-transcriber",
+  async (event, selectedFilePath, timestamp) => {
+    console.log("IS TIMESTAMP UNDEFINED", timestamp);
+    const currentDir = currentPath.dirname(selectedFilePath);
+    const outputPath = currentPath.join(currentDir, "output.wav");
+    // console.log(outputPath, "OUTPUTPATH");
+    const audioData = await decodeAudio(
+      selectedFilePath,
+      outputPath,
+      timestamp,
+    );
+    const transcriber = await pipeline(
+      "automatic-speech-recognition",
+      "Xenova/whisper-base.en",
+    );
+    const output = await transcriber(audioData, {
+      return_timestamps: "word",
+    });
+    console.log(output, "OUTPUT");
 
-  return output;
-});
+    return output;
+  },
+);
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require("electron-squirrel-startup")) {
   app.quit();
@@ -75,10 +87,11 @@ ipcMain.handle(
     dataOutput,
     // identifyGap,
   ) => {
-    console.log("NOT NULL", textItem.endPoint, nextTextStartPoint, filePath);
+    //console.log("NOT NULL", textItem.endPoint, nextTextStartPoint, filePath);
 
     return new Promise((resolve) => {
       let silenceItem = null;
+
       const processor = spawn(ffmpegPath, [
         "-ss",
         `${textItem.endPoint}`,
@@ -127,36 +140,45 @@ ipcMain.handle(
 
 ipcMain.handle(
   "silence-detect",
-  async (event, selectedFile, fileEvent, filePath) => {
+  async (event, selectedFile, fileEvent, filePath, silenceDb, mode) => {
     let dataOutput = "";
     const processor = spawn(ffmpegPath, [
       "-i",
       `${filePath}`,
       "-af",
-      "silencedetect=noise=-30dB:d=0.1",
+      `silencedetect=noise=${silenceDb}dB:d=0.1`,
       "-f",
       "null",
       "-",
     ]);
+    console.log("silenceDb", silenceDb);
 
-    //FFmpeg uses stderr instead of stdout for its output
-    processor.stderr.on("data", (d) => {
-      // outputLog.textContent = d.toString();
-      dataOutput += d.toString();
-    });
+    return new Promise((resolve, reject) => {
+      //FFmpeg uses stderr instead of stdout for its output
+      processor.stderr.on("data", (d) => {
+        // outputLog.textContent = d.toString();
+        dataOutput += d.toString();
+      });
 
-    processor.on("close", () => {
-      const silences = [];
+      processor.on("close", () => {
+        const silences = [];
 
-      let currentStart = null;
+        let currentStart = null;
 
-      //setIsDisabled(false);
-      //console.log(dataOutput)
-      console.log("THIS IS THE FILEPATH", typeof toString(filePath));
-      getSilences(dataOutput, currentStart, silences);
+        //setIsDisabled(false);
+        //console.log(dataOutput)
+        console.log("THIS IS THE FILEPATH", typeof toString(filePath));
+        getSilences(dataOutput, currentStart, silences);
 
-      trimVideo(silences, dataOutput, filePath);
-      fileEvent.value = "";
+        if (mode === 0) {
+          trimVideo(silences, dataOutput, filePath);
+        }
+
+        fileEvent.value = "";
+        resolve(silences);
+      });
+
+      processor.on("error", reject);
     });
   },
 );
@@ -181,7 +203,7 @@ function getSilences(dataOutput, currentStart, silences) {
 }
 
 ipcMain.handle("trim-video", (event, silences, dataOutput, filePath) => {
-  console.log(silences, dataOutput, filePath);
+  console.log(silences, dataOutput, filePath, "HOW MANY");
   const outputDir = path.join(path.dirname(filePath), "clips");
   const durationInSeconds = parseDuration(dataOutput);
   const keepRanges = getKeepRanges(silences, durationInSeconds);
@@ -194,7 +216,7 @@ ipcMain.handle("trim-video", (event, silences, dataOutput, filePath) => {
     durationInSeconds,
     videoInfo,
   );
-  console.log(xml);
+  //console.log(xml);
   fs.writeFileSync(
     path.join(path.dirname(filePath), "choppedSequence.xml"),
     xml,
@@ -210,7 +232,8 @@ ipcMain.handle("trim-video", (event, silences, dataOutput, filePath) => {
     const fileName = `clip_${String(index + 1).padStart(3, "0")}.mp4`;
     const outputPath = path.join(outputDir, fileName);
 
-    console.log(range, index, "RANGE");
+    console.log("RANGE:", range);
+    console.log("START POINT:", range?.startPoint);
     const cut = spawn(ffmpegPath, [
       "-ss",
       range.startPoint.toFixed(3),
@@ -283,13 +306,17 @@ app.on("window-all-closed", () => {
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
 
-const decodeAudio = async (selectedFilePath, outputPath) => {
+const decodeAudio = async (selectedFilePath, outputPath, timestamp) => {
   return new Promise((resolve, reject) => {
-    console.log("PATH EXISTS", ffmpegPath, "SELEC", selectedFilePath);
     let outputLog = "";
+    console.log("TIMESTAMP TEST", timestamp[0], timestamp[1] - timestamp[0]);
     const processor = spawn(ffmpegPath, [
       "-i",
       selectedFilePath,
+      "-ss",
+      timestamp[0],
+      "-t",
+      timestamp[1] - timestamp[0],
       "-map", //First audio stream (input file 0)
       "0:a",
       "-ac", //audio channels
@@ -304,7 +331,7 @@ const decodeAudio = async (selectedFilePath, outputPath) => {
 
     processor.stderr.on("data", (d) => {
       outputLog += d.toString();
-      console.log(outputLog);
+      //console.log(outputLog);
     });
 
     processor.on("close", async (code) => {
@@ -358,7 +385,7 @@ function getKeepRanges(silences, duration) {
 
   console.log("current cursor location", cursor);
   if (cursor <= duration) {
-    keep.push({ start: cursor, end: duration });
+    keep.push({ startPoint: cursor, endPoint: duration });
   }
   // else if (cursor >= duration){
 
@@ -371,7 +398,7 @@ function trimVideo(silences, dataOutput, filePath) {
   console.log(silences, dataOutput, filePath, typeof filePath, "HEY");
   const outputDir = path.join(path.dirname(filePath), "clips");
   const durationInSeconds = parseDuration(dataOutput);
-  const keepRanges = getKeepRanges(silences, durationInSeconds);
+  const keepRanges = getKeepRanges(silences, duration);
   const fps = parseFrameRate(dataOutput);
   const videoInfo = { width: 3840, height: 2160 };
   const xml = generateXML(
@@ -396,6 +423,7 @@ function trimVideo(silences, dataOutput, filePath) {
   keepRanges.forEach((range, index) => {
     const fileName = `clip_${String(index + 1).padStart(3, "0")}.mp4`;
     const outputPath = path.join(outputDir, fileName);
+    console.log("RANGE", range);
 
     const cut = spawn(ffmpegPath, [
       "-ss",

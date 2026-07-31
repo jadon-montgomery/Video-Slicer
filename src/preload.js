@@ -17,17 +17,19 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("get-ffmpeg-path");
   },
 
-  runTranscriber: (selectedFilePath) => {
+  runTranscriber: (selectedFilePath, timestamp) => {
     console.log("PRELOAD runTranscriber");
-    return ipcRenderer.invoke("run-transcriber", selectedFilePath);
+    return ipcRenderer.invoke("run-transcriber", selectedFilePath, timestamp);
   },
 
-  silenceDetect: (selectedFile, fileEvent, filePath) => {
+  silenceDetect: (selectedFile, fileEvent, filePath, silenceDb, mode) => {
     return ipcRenderer.invoke(
       "silence-detect",
       selectedFile,
       fileEvent,
       filePath,
+      silenceDb,
+      mode,
     );
   },
 
