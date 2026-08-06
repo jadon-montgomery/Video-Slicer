@@ -8,7 +8,7 @@ Project Video Slicer is an app that chops up your video clips in seconds!
 ## Audio Transcription
 - This mode takes a hybrid approach, using **silence detection** to locate all gaps of silence in your clip and following up with Whisper AI to provide you with a complete speech-to-text transcription of your video's audio contents
 
-- # Other resources
+# Other resources
 -  Follow the devlog series! Watch episode 1 [here](https://www.youtube.com/watch?v=ApTvhlkbru4&t=18s)
 
 # Platforms
